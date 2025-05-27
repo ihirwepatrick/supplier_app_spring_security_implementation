@@ -14,8 +14,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(
-                title = "Supplier Management API",
-                description = "REST API for managing suppliers with JWT authentication",
+                title = "Supplier & Project Management API",
+                description = "REST API for managing suppliers, projects, and tasks with JWT authentication",
                 version = "1.0",
                 contact = @Contact(
                         name = "Support Team",

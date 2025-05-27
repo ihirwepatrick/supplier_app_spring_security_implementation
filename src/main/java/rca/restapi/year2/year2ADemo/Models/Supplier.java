@@ -10,7 +10,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -78,6 +80,10 @@ public class Supplier {
     @CollectionTable(name = "supplier_roles", joinColumns = @JoinColumn(name = "supplier_id"))
     @Column(name = "role", length = 20)
     private Set<String> roles = new HashSet<>();
+    
+    @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Task> assignedTasks = new ArrayList<>();
     
     @PrePersist
     protected void onCreate() {
