@@ -2,6 +2,7 @@ package rca.restapi.year2.year2ADemo.Services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,6 +12,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import rca.restapi.year2.year2ADemo.Exception.DuplicateResourceException;
+import rca.restapi.year2.year2ADemo.Exception.ResourceNotFoundException;
 import rca.restapi.year2.year2ADemo.Models.Admin;
 import rca.restapi.year2.year2ADemo.Models.Supplier;
 import rca.restapi.year2.year2ADemo.Repositories.AdminRepository;
@@ -61,35 +64,39 @@ public class AuthService implements UserDetailsService {
     }
 
     public Map<String, Object> authenticate(String email, String password) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, password)
+            );
 
-        UserDetails userDetails = loadUserByUsername(email);
-        String token = jwtService.generateToken(userDetails);
+            UserDetails userDetails = loadUserByUsername(email);
+            String token = jwtService.generateToken(userDetails);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", token);
-        
-        // Determine user type and include it in the response
-        Optional<Admin> adminOptional = adminRepository.findByEmail(email);
-        if (adminOptional.isPresent()) {
-            response.put("userType", "admin");
-            response.put("userId", adminOptional.get().getId());
-        } else {
-            Optional<Supplier> supplierOptional = supplierRepository.findByEmail(email);
-            if (supplierOptional.isPresent()) {
-                response.put("userType", "supplier");
-                response.put("userId", supplierOptional.get().getId());
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            
+            // Determine user type and include it in the response
+            Optional<Admin> adminOptional = adminRepository.findByEmail(email);
+            if (adminOptional.isPresent()) {
+                response.put("userType", "admin");
+                response.put("userId", adminOptional.get().getId());
+            } else {
+                Optional<Supplier> supplierOptional = supplierRepository.findByEmail(email);
+                if (supplierOptional.isPresent()) {
+                    response.put("userType", "supplier");
+                    response.put("userId", supplierOptional.get().getId());
+                }
             }
-        }
 
-        return response;
+            return response;
+        } catch (BadCredentialsException e) {
+            throw new IllegalArgumentException("Invalid email or password");
+        }
     }
 
     public Admin registerAdmin(Admin admin) {
         if (adminRepository.existsByEmail(admin.getEmail()) || supplierRepository.existsByEmail(admin.getEmail())) {
-            throw new RuntimeException("Email already in use");
+            throw new DuplicateResourceException("User", "email", admin.getEmail());
         }
         
         admin.setPassword(passwordEncoder.encode(admin.getPassword()));
@@ -103,7 +110,7 @@ public class AuthService implements UserDetailsService {
 
     public Supplier registerSupplier(Supplier supplier) {
         if (adminRepository.existsByEmail(supplier.getEmail()) || supplierRepository.existsByEmail(supplier.getEmail())) {
-            throw new RuntimeException("Email already in use");
+            throw new DuplicateResourceException("User", "email", supplier.getEmail());
         }
         
         supplier.setPassword(passwordEncoder.encode(supplier.getPassword()));

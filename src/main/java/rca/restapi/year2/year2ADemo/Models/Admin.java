@@ -2,9 +2,9 @@ package rca.restapi.year2.year2ADemo.Models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,17 +25,26 @@ public class Admin {
     private Long id;
 
     @NotBlank(message = "Full name is required")
+    @Size(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
+    @Column(length = 100)
     private String fullName;
 
     @Email(message = "Please provide a valid email address")
     @NotBlank(message = "Email is required")
-    @Column(nullable = false, unique = true)
+    @Size(max = 100, message = "Email must not exceed 100 characters")
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @JsonIgnore
-    @Column(nullable = false)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{8,}$", 
+             message = "Password must contain at least one letter and one number")
+    @Column(nullable = false, length = 100)
     private String password;
 
+    @Pattern(regexp = "^\\+?[0-9]{10,15}$", message = "Phone number must be a valid format")
+    @Column(length = 15)
     private String phoneNumber;
 
     @Column(name = "created_at")
@@ -46,13 +55,19 @@ public class Admin {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "admin_roles", joinColumns = @JoinColumn(name = "admin_id"))
-    @Column(name = "role")
+    @Column(name = "role", length = 20)
     private Set<String> roles = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        
+        // Add default role if none provided
+        if (this.roles == null || this.roles.isEmpty()) {
+            this.roles = new HashSet<>();
+            this.roles.add("ROLE_ADMIN");
+        }
     }
 
     @PreUpdate

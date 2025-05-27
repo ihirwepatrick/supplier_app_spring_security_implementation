@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import rca.restapi.year2.year2ADemo.Exception.ResourceNotFoundException;
+import rca.restapi.year2.year2ADemo.Exception.DuplicateResourceException;
 import rca.restapi.year2.year2ADemo.Repositories.SupplierRepository;
 import rca.restapi.year2.year2ADemo.Models.Supplier;
 import rca.restapi.year2.year2ADemo.Models.Supplier.SupplierStatus;
@@ -21,11 +23,16 @@ public class SupplierService {
         return supplierRepository.findAll(pageable);
     }
     
-    public Optional<Supplier> getSupplierById(Long id) {
-        return supplierRepository.findById(id);
+    public Supplier getSupplierById(Long id) {
+        return supplierRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier", "id", id));
     }
     
     public Supplier addSupplier(Supplier supplier) {
+        // Check if a supplier with the same email already exists
+        if (supplierRepository.findByEmail(supplier.getEmail()).isPresent()) {
+            throw new DuplicateResourceException("Supplier", "email", supplier.getEmail());
+        }
         return supplierRepository.save(supplier);
     }
     
@@ -39,7 +46,13 @@ public class SupplierService {
     
     public Supplier updateSupplier(Long id, Supplier updatedSupplier) {
         Supplier existingSupplier = supplierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier", "id", id));
+        
+        // Check if email is being changed and if it already exists
+        if (!existingSupplier.getEmail().equals(updatedSupplier.getEmail()) && 
+            supplierRepository.findByEmail(updatedSupplier.getEmail()).isPresent()) {
+            throw new DuplicateResourceException("Supplier", "email", updatedSupplier.getEmail());
+        }
         
         existingSupplier.setSupplierName(updatedSupplier.getSupplierName());
         existingSupplier.setAddress(updatedSupplier.getAddress());
@@ -53,12 +66,15 @@ public class SupplierService {
     }
     
     public void deleteSupplier(Long id) {
+        if (!supplierRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Supplier", "id", id);
+        }
         supplierRepository.deleteById(id);
     }
     
     public Supplier updateSupplierStatus(Long id, SupplierStatus status) {
         Supplier supplier = supplierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier", "id", id));
         
         supplier.setStatus(status);
         return supplierRepository.save(supplier);
