@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 import rca.restapi.year2.year2ADemo.Models.Supplier;
 
 import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
 
@@ -17,7 +19,10 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     Page<Supplier> findBySupplierNameContaining(String name, Pageable pageable);
 
     // Native query to search by supplier name
-    @Query(value = "SELECT * FROM supplier WHERE supplier_name LIKE %:name%", nativeQuery = true)
+    @Query(value = "SELECT * FROM suppliers WHERE supplier_name LIKE %:name%", nativeQuery = true)
     List<Supplier> searchByName(@Param("name") String name);
-
+    
+    // Authentication-related methods
+    Optional<Supplier> findByEmail(String email);
+    boolean existsByEmail(String email);
 }
