@@ -29,7 +29,7 @@ import org.springframework.context.annotation.Configuration;
         servers = {
                 @Server(
                         description = "Local ENV",
-                        url = "http://localhost:8081"
+                        url = "http://localhost:8082"
                 )
         },
         security = {
@@ -38,7 +38,8 @@ import org.springframework.context.annotation.Configuration;
 )
 @SecurityScheme(
         name = "bearerAuth",
-        description = "JWT auth description",
+        description = "JWT Authentication. First login using /api/auth/login endpoint to obtain token, " +
+                "then click the 'Authorize' button at the top and enter your JWT token in the format: 'Bearer {your_token}'",
         scheme = "bearer",
         type = SecuritySchemeType.HTTP,
         bearerFormat = "JWT",
