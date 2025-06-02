@@ -9,17 +9,30 @@ import {
     Paper,
     Alert,
     CircularProgress,
-    Link
+    Link,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { authAPI } from '../services/api';
 
+const categories = [
+    'IT Services',
+    'Construction',
+    'Manufacturing',
+    'Logistics',
+    'Consulting',
+    'Other'
+];
+
 const validationSchema = yup.object({
-    fullName: yup
+    supplierName: yup
         .string()
-        .required('Full name is required')
-        .min(3, 'Full name must be at least 3 characters'),
+        .required('Supplier name is required')
+        .min(3, 'Supplier name must be at least 3 characters'),
     email: yup
         .string()
         .email('Enter a valid email')
@@ -28,6 +41,12 @@ const validationSchema = yup.object({
         .string()
         .matches(/^\+?[0-9]{10,15}$/, 'Phone number must be valid')
         .required('Phone number is required'),
+    address: yup
+        .string()
+        .required('Address is required'),
+    category: yup
+        .string()
+        .required('Category is required'),
     password: yup
         .string()
         .min(6, 'Password should be of minimum 6 characters length')
@@ -35,21 +54,27 @@ const validationSchema = yup.object({
     confirmPassword: yup
         .string()
         .oneOf([yup.ref('password')], 'Passwords must match')
-        .required('Confirm password is required')
+        .required('Confirm password is required'),
+    description: yup
+        .string()
+        .max(1000, 'Description must not exceed 1000 characters')
 });
 
-const RegisterAdmin: React.FC = () => {
+const RegisterSupplier: React.FC = () => {
     const navigate = useNavigate();
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     const formik = useFormik({
         initialValues: {
-            fullName: '',
+            supplierName: '',
             email: '',
             phoneNumber: '',
+            address: '',
+            category: '',
             password: '',
-            confirmPassword: ''
+            confirmPassword: '',
+            description: ''
         },
         validationSchema,
         onSubmit: async (values) => {
@@ -57,7 +82,7 @@ const RegisterAdmin: React.FC = () => {
             setLoading(true);
             try {
                 const { confirmPassword, ...registrationData } = values;
-                const response = await authAPI.registerAdmin(registrationData);
+                const response = await authAPI.registerSupplier(registrationData);
                 if (response.data.success) {
                     // Optionally auto-login after registration
                     const loginResponse = await authAPI.login({
@@ -102,7 +127,7 @@ const RegisterAdmin: React.FC = () => {
                     }}
                 >
                     <Typography component="h1" variant="h5" gutterBottom>
-                        Register as Admin
+                        Register as Supplier
                     </Typography>
                     
                     {error && (
@@ -115,15 +140,15 @@ const RegisterAdmin: React.FC = () => {
                         <TextField
                             margin="normal"
                             fullWidth
-                            id="fullName"
-                            name="fullName"
-                            label="Full Name"
-                            autoComplete="name"
+                            id="supplierName"
+                            name="supplierName"
+                            label="Supplier Name"
+                            autoComplete="organization"
                             autoFocus
-                            value={formik.values.fullName}
+                            value={formik.values.supplierName}
                             onChange={formik.handleChange}
-                            error={formik.touched.fullName && Boolean(formik.errors.fullName)}
-                            helperText={formik.touched.fullName && formik.errors.fullName}
+                            error={formik.touched.supplierName && Boolean(formik.errors.supplierName)}
+                            helperText={formik.touched.supplierName && formik.errors.supplierName}
                             disabled={loading}
                         />
                         <TextField
@@ -155,6 +180,36 @@ const RegisterAdmin: React.FC = () => {
                         <TextField
                             margin="normal"
                             fullWidth
+                            id="address"
+                            name="address"
+                            label="Address"
+                            autoComplete="street-address"
+                            value={formik.values.address}
+                            onChange={formik.handleChange}
+                            error={formik.touched.address && Boolean(formik.errors.address)}
+                            helperText={formik.touched.address && formik.errors.address}
+                            disabled={loading}
+                        />
+                        <FormControl fullWidth margin="normal">
+                            <InputLabel>Category</InputLabel>
+                            <Select
+                                name="category"
+                                value={formik.values.category}
+                                onChange={formik.handleChange}
+                                error={formik.touched.category && Boolean(formik.errors.category)}
+                                label="Category"
+                                disabled={loading}
+                            >
+                                {categories.map((category) => (
+                                    <MenuItem key={category} value={category}>
+                                        {category}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <TextField
+                            margin="normal"
+                            fullWidth
                             name="password"
                             label="Password"
                             type="password"
@@ -180,6 +235,19 @@ const RegisterAdmin: React.FC = () => {
                             helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
                             disabled={loading}
                         />
+                        <TextField
+                            margin="normal"
+                            fullWidth
+                            name="description"
+                            label="Description"
+                            multiline
+                            rows={4}
+                            value={formik.values.description}
+                            onChange={formik.handleChange}
+                            error={formik.touched.description && Boolean(formik.errors.description)}
+                            helperText={formik.touched.description && formik.errors.description}
+                            disabled={loading}
+                        />
                         <Button
                             type="submit"
                             fullWidth
@@ -202,4 +270,4 @@ const RegisterAdmin: React.FC = () => {
     );
 };
 
-export default RegisterAdmin; 
+export default RegisterSupplier; 

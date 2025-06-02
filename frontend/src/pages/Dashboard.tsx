@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, Paper, Typography, Box, CircularProgress } from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+import { Grid, Paper, Typography, Box, CircularProgress, Alert } from '@mui/material';
 import { projectAPI, taskAPI, supplierAPI } from '../services/api';
 import { Project, Task, Supplier } from '../types';
 
+interface DashboardStats {
+  totalProjects: number;
+  activeProjects: number;
+  totalTasks: number;
+  pendingTasks: number;
+  totalSuppliers: number;
+  activeSuppliers: number;
+}
+
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
     totalProjects: 0,
     activeProjects: 0,
     totalTasks: 0,
@@ -18,18 +26,26 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        // Fetch projects
-        const projectsResponse = await projectAPI.getAllProjects(0, 1000);
-        const projects = projectsResponse.data.data.content;
-        
-        // Fetch tasks
-        const tasksResponse = await taskAPI.getAllTasks(0, 1000);
-        const tasks = tasksResponse.data.data.content;
-        
-        // Fetch suppliers
-        const suppliersResponse = await supplierAPI.getAllSuppliers(0, 1000);
-        const suppliers = suppliersResponse.data.data.content;
+        // Fetch all data in parallel
+        const [projectsResponse, tasksResponse, suppliersResponse] = await Promise.all([
+          projectAPI.getAllProjects(0, 1000),
+          taskAPI.getAllTasks(0, 1000),
+          supplierAPI.getAllSuppliers(0, 1000)
+        ]);
+
+        // Check if responses are successful
+        if (!projectsResponse.data.success || !tasksResponse.data.success || !suppliersResponse.data.success) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
+        const projects = projectsResponse.data.data.content || [];
+        const tasks = tasksResponse.data.data.content || [];
+        const suppliers = suppliersResponse.data.data.content || [];
+
+        console.log('Dashboard Data:', { projects, tasks, suppliers }); // Debug log
 
         setStats({
           totalProjects: projects.length,
@@ -39,8 +55,9 @@ const Dashboard: React.FC = () => {
           totalSuppliers: suppliers.length,
           activeSuppliers: suppliers.filter(s => s.status === 'ACTIVE').length
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
+        setError(error.response?.data?.message || 'Failed to load dashboard data. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -57,54 +74,109 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box p={3}>
       <Typography variant="h4" gutterBottom>
-        Welcome, {user?.fullName || 'Admin'}
+        Dashboard Overview
       </Typography>
       
       <Grid container spacing={3}>
         {/* Projects Stats */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper 
+            sx={{ 
+              p: 3, 
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center'
+            }}
+          >
+            <Typography variant="h6" gutterBottom color="primary">
               Projects Overview
             </Typography>
-            <Typography variant="h3" color="primary">
+            <Typography variant="h3" color="primary" sx={{ my: 2 }}>
               {stats.totalProjects}
             </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Total Projects
+            </Typography>
+            <Typography variant="h5" color="success.main" sx={{ mt: 2 }}>
+              {stats.activeProjects}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Active Projects: {stats.activeProjects}
+              Active Projects
             </Typography>
           </Paper>
         </Grid>
 
         {/* Tasks Stats */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper 
+            sx={{ 
+              p: 3, 
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center'
+            }}
+          >
+            <Typography variant="h6" gutterBottom color="primary">
               Tasks Overview
             </Typography>
-            <Typography variant="h3" color="primary">
+            <Typography variant="h3" color="primary" sx={{ my: 2 }}>
               {stats.totalTasks}
             </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Total Tasks
+            </Typography>
+            <Typography variant="h5" color="warning.main" sx={{ mt: 2 }}>
+              {stats.pendingTasks}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Pending Tasks: {stats.pendingTasks}
+              Pending Tasks
             </Typography>
           </Paper>
         </Grid>
 
         {/* Suppliers Stats */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper 
+            sx={{ 
+              p: 3, 
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center'
+            }}
+          >
+            <Typography variant="h6" gutterBottom color="primary">
               Suppliers Overview
             </Typography>
-            <Typography variant="h3" color="primary">
+            <Typography variant="h3" color="primary" sx={{ my: 2 }}>
               {stats.totalSuppliers}
             </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Total Suppliers
+            </Typography>
+            <Typography variant="h5" color="success.main" sx={{ mt: 2 }}>
+              {stats.activeSuppliers}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Active Suppliers: {stats.activeSuppliers}
+              Active Suppliers
             </Typography>
           </Paper>
         </Grid>

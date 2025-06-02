@@ -16,7 +16,13 @@ export interface Supplier extends User {
     contactPerson?: string;
     category?: string;
     description?: string;
-    status: 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED';
+    status: SupplierStatus;
+}
+
+export enum SupplierStatus {
+    ACTIVE = 'ACTIVE',
+    INACTIVE = 'INACTIVE',
+    BLACKLISTED = 'BLACKLISTED'
 }
 
 export interface Project {
@@ -41,7 +47,7 @@ export enum ProjectStatus {
 
 export interface Task {
     id: number;
-    title: string;
+    name: string;
     description?: string;
     status: TaskStatus;
     priority: TaskPriority;

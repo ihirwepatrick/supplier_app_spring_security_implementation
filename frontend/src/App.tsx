@@ -7,6 +7,8 @@ import Projects from './pages/Projects';
 import Tasks from './pages/Tasks';
 import Suppliers from './pages/Suppliers';
 import Login from './pages/Login';
+import RegisterAdmin from './pages/RegisterAdmin';
+import RegisterSupplier from './pages/RegisterSupplier';
 
 // Create a theme instance
 const theme = createTheme({
@@ -23,10 +25,25 @@ const theme = createTheme({
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('token');
-  if (!token) {
+  const user = localStorage.getItem('user');
+  
+  if (!token || !user) {
+    // Clear any invalid auth data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     return <Navigate to="/login" replace />;
   }
-  return <Layout>{children}</Layout>;
+
+  try {
+    // Verify user data is valid JSON
+    JSON.parse(user);
+    return <Layout>{children}</Layout>;
+  } catch (e) {
+    // Clear invalid user data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return <Navigate to="/login" replace />;
+  }
 };
 
 const App: React.FC = () => {
@@ -35,6 +52,8 @@ const App: React.FC = () => {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register/admin" element={<RegisterAdmin />} />
+          <Route path="/register/supplier" element={<RegisterSupplier />} />
           <Route
             path="/dashboard"
             element={

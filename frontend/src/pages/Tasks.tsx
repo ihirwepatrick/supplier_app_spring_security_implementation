@@ -22,7 +22,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useFormik } from 'formik';
@@ -31,7 +32,7 @@ import { taskAPI, projectAPI, supplierAPI } from '../services/api';
 import { Task, TaskStatus, TaskPriority, Project, Supplier } from '../types';
 
 const validationSchema = yup.object({
-  title: yup.string().required('Task title is required').min(3, 'Title must be at least 3 characters'),
+  name: yup.string().required('Task name is required').min(3, 'Name must be at least 3 characters'),
   description: yup.string().max(1000, 'Description must not exceed 1000 characters'),
   status: yup.string().required('Status is required'),
   priority: yup.string().required('Priority is required'),
@@ -50,13 +51,27 @@ const Tasks: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     try {
+      console.log('Fetching tasks...');
       const response = await taskAPI.getAllTasks(page, rowsPerPage);
-      setTasks(response.data.data.content);
-    } catch (error) {
+      console.log('Tasks API Response:', response.data);
+      if (response.data.success) {
+        setTasks(response.data.data.content);
+      } else {
+        console.error('API returned success: false', response.data.message);
+        setError(response.data.message);
+      }
+    } catch (error: any) {
       console.error('Error fetching tasks:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      setError(error.response?.data?.message || 'Failed to fetch tasks');
     } finally {
       setLoading(false);
     }
@@ -88,7 +103,7 @@ const Tasks: React.FC = () => {
 
   const formik = useFormik({
     initialValues: {
-      title: '',
+      name: '',
       description: '',
       status: TaskStatus.PENDING,
       priority: TaskPriority.MEDIUM,
@@ -118,7 +133,7 @@ const Tasks: React.FC = () => {
   const handleEdit = (task: Task) => {
     setEditingTask(task);
     formik.setValues({
-      title: task.title,
+      name: task.name,
       description: task.description || '',
       status: task.status,
       priority: task.priority,
@@ -188,6 +203,25 @@ const Tasks: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={() => {
+            setError(null);
+            fetchTasks();
+          }}
+        >
+          Retry
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -210,7 +244,7 @@ const Tasks: React.FC = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Title</TableCell>
+              <TableCell>Name</TableCell>
               <TableCell>Project</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Priority</TableCell>
@@ -222,8 +256,8 @@ const Tasks: React.FC = () => {
           <TableBody>
             {tasks.map((task) => (
               <TableRow key={task.id}>
-                <TableCell>{task.title}</TableCell>
-                <TableCell>{task.project.name}</TableCell>
+                <TableCell>{task.name}</TableCell>
+                <TableCell>{task.project?.name ?? 'Unknown Project'}</TableCell>
                 <TableCell>
                   <Chip
                     label={task.status}
@@ -238,8 +272,8 @@ const Tasks: React.FC = () => {
                     size="small"
                   />
                 </TableCell>
-                <TableCell>{task.assignedTo?.supplierName || 'Unassigned'}</TableCell>
-                <TableCell>{task.dueDate}</TableCell>
+                <TableCell>{task.assignedTo?.supplierName ?? 'Unassigned'}</TableCell>
+                <TableCell>{task.dueDate ?? 'Not set'}</TableCell>
                 <TableCell>
                   <IconButton onClick={() => handleEdit(task)} color="primary">
                     <EditIcon />
@@ -270,12 +304,12 @@ const Tasks: React.FC = () => {
             <TextField
               fullWidth
               margin="normal"
-              name="title"
-              label="Task Title"
-              value={formik.values.title}
+              name="name"
+              label="Task Name"
+              value={formik.values.name}
               onChange={formik.handleChange}
-              error={formik.touched.title && Boolean(formik.errors.title)}
-              helperText={formik.touched.title && formik.errors.title}
+              error={formik.touched.name && Boolean(formik.errors.name)}
+              helperText={formik.touched.name && formik.errors.name}
             />
             <TextField
               fullWidth
@@ -384,8 +418,4 @@ const Tasks: React.FC = () => {
           </DialogActions>
         </form>
       </Dialog>
-    </Box>
-  );
-};
-
-export default Tasks; 
+    </Box>

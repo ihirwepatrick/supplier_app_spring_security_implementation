@@ -38,7 +38,13 @@ const validationSchema = yup.object({
   address: yup.string().required('Address is required'),
   category: yup.string().required('Category is required'),
   status: yup.string().required('Status is required'),
-  description: yup.string().max(1000, 'Description must not exceed 1000 characters')
+  description: yup.string().max(1000, 'Description must not exceed 1000 characters'),
+  password: yup.string()
+    .required('Password is required')
+    .min(6, 'Password must be at least 6 characters'),
+  confirmPassword: yup.string()
+    .required('Please confirm your password')
+    .oneOf([yup.ref('password')], 'Passwords must match')
 });
 
 const categories = [
@@ -58,6 +64,7 @@ const Suppliers: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filterStatus, setFilterStatus] = useState<SupplierStatus | 'ALL'>('ALL');
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSuppliers = async () => {
     try {
@@ -82,22 +89,30 @@ const Suppliers: React.FC = () => {
       address: '',
       category: '',
       status: SupplierStatus.ACTIVE,
-      description: ''
+      description: '',
+      password: '',
+      confirmPassword: ''
     },
     validationSchema,
     onSubmit: async (values) => {
       try {
+        const { confirmPassword, ...supplierData } = values;
+        
         if (editingSupplier) {
-          await supplierAPI.updateSupplier(editingSupplier.id, values);
+          if (!values.password) {
+            delete supplierData.password;
+          }
+          await supplierAPI.updateSupplier(editingSupplier.id, supplierData);
         } else {
-          await supplierAPI.createSupplier(values);
+          await supplierAPI.createSupplier(supplierData);
         }
         setOpenDialog(false);
         fetchSuppliers();
         formik.resetForm();
         setEditingSupplier(null);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error saving supplier:', error);
+        setError(error.response?.data?.message || 'Failed to save supplier');
       }
     }
   });
@@ -111,7 +126,9 @@ const Suppliers: React.FC = () => {
       address: supplier.address,
       category: supplier.category,
       status: supplier.status,
-      description: supplier.description || ''
+      description: supplier.description || '',
+      password: '',
+      confirmPassword: ''
     });
     setOpenDialog(true);
   };
@@ -335,6 +352,30 @@ const Suppliers: React.FC = () => {
               onChange={formik.handleChange}
               error={formik.touched.description && Boolean(formik.errors.description)}
               helperText={formik.touched.description && formik.errors.description}
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              name="password"
+              label="Password"
+              type="password"
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              error={formik.touched.password && Boolean(formik.errors.password)}
+              helperText={formik.touched.password && formik.errors.password}
+              required
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              name="confirmPassword"
+              label="Confirm Password"
+              type="password"
+              value={formik.values.confirmPassword}
+              onChange={formik.handleChange}
+              error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
+              helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+              required
             />
           </DialogContent>
           <DialogActions>
