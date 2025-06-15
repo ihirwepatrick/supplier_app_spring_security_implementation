@@ -39,7 +39,7 @@ export interface Project {
 
 export enum ProjectStatus {
     PLANNING = 'PLANNING',
-    ACTIVE = 'ACTIVE',
+    IN_PROGRESS = 'IN_PROGRESS',
     COMPLETED = 'COMPLETED',
     ON_HOLD = 'ON_HOLD',
     CANCELLED = 'CANCELLED'
@@ -86,5 +86,6 @@ export interface LoginRequest {
 
 export interface LoginResponse {
     token: string;
-    user: Admin | Supplier;
+    userId: number;
+    userType: 'admin' | 'supplier';
 } 
