@@ -53,6 +53,17 @@ const Tasks: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [error, setError] = useState<string | null>(null);
 
+  const initialFormValues = {
+    name: '',
+    description: '',
+    status: TaskStatus.PENDING,
+    priority: TaskPriority.MEDIUM,
+    startDate: '',
+    dueDate: '',
+    projectId: '',
+    assignedToId: ''
+  };
+
   const fetchTasks = async () => {
     try {
       console.log('Fetching tasks...');
@@ -102,30 +113,48 @@ const Tasks: React.FC = () => {
   }, [page, rowsPerPage]);
 
   const formik = useFormik({
-    initialValues: {
-      name: '',
-      description: '',
-      status: TaskStatus.PENDING,
-      priority: TaskPriority.MEDIUM,
-      startDate: '',
-      dueDate: '',
-      projectId: '',
-      assignedToId: ''
-    },
+    initialValues: initialFormValues,
     validationSchema,
-    onSubmit: async (values) => {
+    onSubmit: async (values, { setSubmitting, setStatus }) => {
       try {
+        setSubmitting(true);
         if (editingTask) {
-          await taskAPI.updateTask(editingTask.id, values);
+          const response = await taskAPI.updateTask(editingTask.id, {
+            name: values.name,
+            description: values.description || undefined,
+            status: values.status,
+            priority: values.priority,
+            startDate: values.startDate || undefined,
+            dueDate: values.dueDate || undefined,
+            project: editingTask.project,
+            assignedTo: values.assignedToId ? suppliers.find(s => s.id === Number(values.assignedToId)) : undefined
+          });
+          if (!response.data.success) {
+            throw new Error(response.data.message || 'Failed to update task');
+          }
         } else {
-          await taskAPI.createTask(Number(values.projectId), values);
+          const response = await taskAPI.createTask(Number(values.projectId), {
+            name: values.name,
+            description: values.description || undefined,
+            status: values.status,
+            priority: values.priority,
+            startDate: values.startDate || undefined,
+            dueDate: values.dueDate || undefined,
+            assignedTo: values.assignedToId ? suppliers.find(s => s.id === Number(values.assignedToId)) : undefined
+          });
+          if (!response.data.success) {
+            throw new Error(response.data.message || 'Failed to create task');
+          }
         }
         setOpenDialog(false);
         fetchTasks();
         formik.resetForm();
         setEditingTask(null);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error saving task:', error);
+        setStatus({ error: error.message || 'Failed to save task' });
+      } finally {
+        setSubmitting(false);
       }
     }
   });
@@ -133,15 +162,22 @@ const Tasks: React.FC = () => {
   const handleEdit = (task: Task) => {
     setEditingTask(task);
     formik.setValues({
-      name: task.name,
+      name: task.name || '',
       description: task.description || '',
-      status: task.status,
-      priority: task.priority,
+      status: task.status || TaskStatus.PENDING,
+      priority: task.priority || TaskPriority.MEDIUM,
       startDate: task.startDate || '',
       dueDate: task.dueDate || '',
-      projectId: task.project.id.toString(),
-      assignedToId: task.assignedTo?.id.toString() || ''
+      projectId: task.project?.id?.toString() || '',
+      assignedToId: task.assignedTo?.id?.toString() || ''
     });
+    setOpenDialog(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingTask(null);
+    formik.resetForm();
+    formik.setValues(initialFormValues);
     setOpenDialog(true);
   };
 
@@ -230,11 +266,7 @@ const Tasks: React.FC = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => {
-            setEditingTask(null);
-            formik.resetForm();
-            setOpenDialog(true);
-          }}
+          onClick={handleAddNew}
         >
           Add Task
         </Button>
@@ -297,10 +329,26 @@ const Tasks: React.FC = () => {
         />
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={openDialog} 
+        onClose={() => {
+          setOpenDialog(false);
+          formik.resetForm();
+          setEditingTask(null);
+        }} 
+        maxWidth="sm" 
+        fullWidth
+      >
         <form onSubmit={formik.handleSubmit}>
-          <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
+          <DialogTitle>
+            {editingTask ? 'Edit Task' : 'Add New Task'}
+          </DialogTitle>
           <DialogContent>
+            {formik.status?.error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {formik.status.error}
+              </Alert>
+            )}
             <TextField
               fullWidth
               margin="normal"
@@ -308,8 +356,10 @@ const Tasks: React.FC = () => {
               label="Task Name"
               value={formik.values.name}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               error={formik.touched.name && Boolean(formik.errors.name)}
               helperText={formik.touched.name && formik.errors.name}
+              disabled={formik.isSubmitting}
             />
             <TextField
               fullWidth
@@ -320,8 +370,10 @@ const Tasks: React.FC = () => {
               rows={4}
               value={formik.values.description}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               error={formik.touched.description && Boolean(formik.errors.description)}
               helperText={formik.touched.description && formik.errors.description}
+              disabled={formik.isSubmitting}
             />
             <FormControl fullWidth margin="normal">
               <InputLabel>Project</InputLabel>
@@ -329,8 +381,10 @@ const Tasks: React.FC = () => {
                 name="projectId"
                 value={formik.values.projectId}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.projectId && Boolean(formik.errors.projectId)}
                 label="Project"
+                disabled={formik.isSubmitting || editingTask !== null}
               >
                 {projects.map((project) => (
                   <MenuItem key={project.id} value={project.id}>
@@ -345,8 +399,10 @@ const Tasks: React.FC = () => {
                 name="status"
                 value={formik.values.status}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.status && Boolean(formik.errors.status)}
                 label="Status"
+                disabled={formik.isSubmitting}
               >
                 {Object.values(TaskStatus).map((status) => (
                   <MenuItem key={status} value={status}>
@@ -361,8 +417,10 @@ const Tasks: React.FC = () => {
                 name="priority"
                 value={formik.values.priority}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 error={formik.touched.priority && Boolean(formik.errors.priority)}
                 label="Priority"
+                disabled={formik.isSubmitting}
               >
                 {Object.values(TaskPriority).map((priority) => (
                   <MenuItem key={priority} value={priority}>
@@ -377,7 +435,9 @@ const Tasks: React.FC = () => {
                 name="assignedToId"
                 value={formik.values.assignedToId}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 label="Assigned To"
+                disabled={formik.isSubmitting}
               >
                 <MenuItem value="">Unassigned</MenuItem>
                 {suppliers.map((supplier) => (
@@ -395,7 +455,9 @@ const Tasks: React.FC = () => {
               type="date"
               value={formik.values.startDate}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               InputLabelProps={{ shrink: true }}
+              disabled={formik.isSubmitting}
             />
             <TextField
               fullWidth
@@ -405,17 +467,43 @@ const Tasks: React.FC = () => {
               type="date"
               value={formik.values.dueDate}
               onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               InputLabelProps={{ shrink: true }}
               error={formik.touched.dueDate && Boolean(formik.errors.dueDate)}
               helperText={formik.touched.dueDate && formik.errors.dueDate}
+              disabled={formik.isSubmitting}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary">
-              {editingTask ? 'Update' : 'Create'}
+            <Button 
+              onClick={() => {
+                setOpenDialog(false);
+                formik.resetForm();
+                setEditingTask(null);
+              }}
+              disabled={formik.isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary"
+              disabled={formik.isSubmitting}
+            >
+              {formik.isSubmitting ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : editingTask ? (
+                'Update'
+              ) : (
+                'Create'
+              )}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
-    </Box>
+    </Box>
+  );
+};
+
+export default Tasks; 
